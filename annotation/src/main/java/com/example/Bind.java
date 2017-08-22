@@ -1,6 +1,4 @@
-package comulez.github.annotationdemo.ButterKnife;
-
-import android.view.View;
+package com.example;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -12,9 +10,9 @@ import java.lang.annotation.Target;
  * Email：lcy1532110757@gmail.com
  */
 
-@Target(ElementType.METHOD)
+
+@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface OnClick {
-    /** View IDs to which the method will be bound. */
-    int[] value() default { View.NO_ID};
+public @interface Bind {
+    int id() default -1;
 }

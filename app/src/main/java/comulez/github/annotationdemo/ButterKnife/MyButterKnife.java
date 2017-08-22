@@ -3,6 +3,9 @@ package comulez.github.annotationdemo.ButterKnife;
 import android.app.Activity;
 import android.view.View;
 
+import com.example.Bind;
+import com.example.OnClick;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
