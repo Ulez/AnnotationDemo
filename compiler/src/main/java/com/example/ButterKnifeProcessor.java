@@ -11,7 +11,9 @@ import com.squareup.javapoet.TypeSpec;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -39,13 +41,12 @@ import static javax.lang.model.element.Modifier.PUBLIC;
 public class ButterKnifeProcessor extends AbstractProcessor {
     private static final ClassName VIEW = ClassName.get("android.view", "View");
     private Elements elementUtils;
-    private TypeName targetTypeName;
     private static final ClassName UNBINDER = ClassName.get("comulez.github.annotationdemo.ButterKnife", "Unbinder");
     private static final ClassName Button = ClassName.get("android.widget", "Button");
-    private Set<? extends Element> elements;
-    private Set<? extends Element> elementClicks;
 
-    private ClassName bindingClassName;
+
+//    private ClassName bindingClassName;
+//    private TypeName targetTypeName;
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
@@ -58,87 +59,158 @@ public class ButterKnifeProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment env) {
-        elements = env.getElementsAnnotatedWith(Bind.class);
-        elementClicks = env.getElementsAnnotatedWith(OnClick.class);
+        Map<ClassName, BindingSet> bindingMap = findAndParseTargets(env);
+
+        for (Map.Entry<ClassName, BindingSet> entry : bindingMap.entrySet()) {
+            ClassName className = entry.getKey();
+            BindingSet binding = entry.getValue();
+
+            TypeSpec.Builder
+                    result = TypeSpec.classBuilder(binding.bindingClassName.simpleName() + "_ViewBinding")
+                    .addModifiers(PUBLIC)
+                    .addSuperinterface(UNBINDER)
+                    .addField(binding.targetTypeName, "target", PRIVATE)
+                    .addMethod(createBindingConstructorForActivity(binding))
+                    .addMethod(createBindingConstructorForActivity2(binding))
+                    .addMethod(createBindingUnbindMethod(binding));
+
+            for (Element element : binding.elementClicks) {//添加点击view的成员变量；
+                int[] ss = element.getAnnotation(OnClick.class).value();
+                for (int s : ss) {
+                    result.addField(VIEW, "view" + s, PRIVATE);
+                }
+            }
+            JavaFile javaFile = JavaFile.builder(binding.bindingClassName.packageName(), result.build())
+                    .addFileComment("Generated code from Butter Knife. Do not modify!")
+                    .build();
+            try {
+                javaFile.writeTo(processingEnv.getFiler());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return false;
+    }
+
+    private Map<ClassName, BindingSet> findAndParseTargets(RoundEnvironment env) {
+        LinkedHashMap<ClassName, BindingSet> map = new LinkedHashMap<ClassName, BindingSet>();
+
+        Set<? extends Element> elements = env.getElementsAnnotatedWith(Bind.class);
+        Set<? extends Element> elementClicks = env.getElementsAnnotatedWith(OnClick.class);
         for (Element element : elements) {
             TypeElement enclosingElement = (TypeElement) element.getEnclosingElement();
             TypeMirror typeMirror = enclosingElement.asType();
-            targetTypeName = TypeName.get(typeMirror);
+            TypeName targetTypeName = TypeName.get(typeMirror);
             if (targetTypeName instanceof ParameterizedTypeName) {
                 targetTypeName = ((ParameterizedTypeName) targetTypeName).rawType;
             }
             String packageName = getPackage(enclosingElement).getQualifiedName().toString();
             String className = enclosingElement.getQualifiedName().toString().substring(packageName.length() + 1).replace('.', '$');
-            bindingClassName = ClassName.get(packageName, className);
-            l(targetTypeName.toString());
+            ClassName bindingClassName = ClassName.get(packageName, className);
+            l("1" + targetTypeName.toString());
+
+            if (map.keySet().contains(bindingClassName)) {
+                l("2" + targetTypeName.toString());
+                BindingSet bindingSet = map.get(bindingClassName);
+                bindingSet.elements.add(element);
+                bindingSet.targetTypeName = targetTypeName;
+                bindingSet.bindingClassName = bindingClassName;
+            } else {
+                l("2" + targetTypeName.toString());
+                BindingSet bindingSet = new BindingSet();
+                bindingSet.elements.add(element);
+                bindingSet.targetTypeName = targetTypeName;
+                bindingSet.bindingClassName = bindingClassName;
+                map.put(bindingClassName, bindingSet);
+            }
+            l("3" + targetTypeName.toString());
         }
-        TypeSpec.Builder
-                result = TypeSpec.classBuilder(bindingClassName.simpleName() + "_ViewBinding")
-                .addModifiers(PUBLIC)
-                .addSuperinterface(UNBINDER)
-                .addField(targetTypeName, "target", PRIVATE)
-                .addMethod(createBindingConstructorForActivity())
-                .addMethod(createBindingConstructorForActivity2())
-                .addMethod(createBindingUnbindMethod());
-        JavaFile javaFile = JavaFile.builder(bindingClassName.packageName(), result.build())
-                .addFileComment("Generated code from Butter Knife. Do not modify!")
-                .build();
-        try {
-            javaFile.writeTo(processingEnv.getFiler());
-        } catch (IOException e) {
-            e.printStackTrace();
+
+        for (Element click : elementClicks) {
+            TypeElement enclosingElement = (TypeElement) click.getEnclosingElement();
+            TypeMirror typeMirror = enclosingElement.asType();
+            TypeName targetTypeName = TypeName.get(typeMirror);
+            if (targetTypeName instanceof ParameterizedTypeName) {
+                targetTypeName = ((ParameterizedTypeName) targetTypeName).rawType;
+            }
+            String packageName = getPackage(enclosingElement).getQualifiedName().toString();
+            String className = enclosingElement.getQualifiedName().toString().substring(packageName.length() + 1).replace('.', '$');
+            ClassName bindingClassName = ClassName.get(packageName, className);
+            l("4" + targetTypeName.toString());
+
+            if (map.keySet().contains(bindingClassName)) {
+                BindingSet bindingSet = map.get(bindingClassName);
+                bindingSet.elementClicks.add(click);
+                bindingSet.targetTypeName = targetTypeName;
+                bindingSet.bindingClassName = bindingClassName;
+            } else {
+                BindingSet bindingSet = new BindingSet();
+                bindingSet.elementClicks.add(click);
+                bindingSet.targetTypeName = targetTypeName;
+                bindingSet.bindingClassName = bindingClassName;
+                map.put(bindingClassName, bindingSet);
+            }
         }
-        return false;
+        return map;
     }
 
     private static void l(String s) {
         System.out.println("log=" + s);
     }
 
-    private MethodSpec createBindingConstructorForActivity() {
+    private MethodSpec createBindingConstructorForActivity(BindingSet binding) {
         MethodSpec.Builder builderConstructor = MethodSpec.constructorBuilder()
                 .addModifiers(PUBLIC)
-                .addParameter(targetTypeName, "target")
+                .addParameter(binding.targetTypeName, "target")
                 .addStatement("this(target, target.getWindow().getDecorView())");
         return builderConstructor.build();
     }
 
     static final ClassName UTILS = ClassName.get("comulez.github.annotationdemo.ButterKnife", "Utils");
 
-    private MethodSpec createBindingConstructorForActivity2() {
+    private MethodSpec createBindingConstructorForActivity2(BindingSet binding) {
         MethodSpec.Builder builderConstructor2 = MethodSpec.constructorBuilder()
                 .addModifiers(PUBLIC)
-                .addParameter(targetTypeName, "target", Modifier.FINAL)
+                .addParameter(binding.targetTypeName, "target", Modifier.FINAL)
                 .addParameter(VIEW, "source")
                 .addStatement("this.target = target")
                 .addStatement("View view");
-        for (Element element : elements) {
+        for (Element element : binding.elements) {
             builderConstructor2.addStatement("target.$L = $T.findRequiredViewAsType(source, R.id.$L, \"field '$L'\", $T.class)", element.getSimpleName(), UTILS, element.getSimpleName(), element.getSimpleName(), getRawType(element));
         }
-        for (Element element : elementClicks) {
+        for (Element element : binding.elementClicks) {
             int[] ss = element.getAnnotation(OnClick.class).value();
             for (int s : ss) {
-                builderConstructor2.addStatement("Utils.findRequiredView(source, $L).setOnClickListener(new View.OnClickListener() {\n" +
-                        "                @Override\n" +
-                        "                public void onClick(View v) {\n" +
-                        "                    target.onClick(v);\n" +
-                        "                }\n" +
-                        "            })", s);
+                builderConstructor2
+                        .addStatement("view = Utils.findRequiredView(source, $L)", s)
+                        .addStatement("view$L = view", s)
+                        .addStatement("view.setOnClickListener(new View.OnClickListener() {\n" +
+                                "            @Override\n" +
+                                "            public void onClick(View v) {\n" +
+                                "                target.onClick(v);\n" +
+                                "            }\n" +
+                                "        })");
             }
         }
-
         return builderConstructor2.build();
     }
 
-    private MethodSpec createBindingUnbindMethod() {
+    private MethodSpec createBindingUnbindMethod(BindingSet binding) {
         MethodSpec.Builder result = MethodSpec.methodBuilder("unbind")
                 .addAnnotation(Override.class)
                 .addModifiers(PUBLIC)
-                .addStatement("$T target = this.target", targetTypeName)
+                .addStatement("$T target = this.target", binding.targetTypeName)
                 .addStatement("if (target == null) throw new $T($S)", IllegalStateException.class, "Bindings already cleared.")
                 .addStatement("this.target = null");
-        for (Element element : elements) {
+        for (Element element : binding.elements) {
             result.addStatement("target.$L = null", element.getSimpleName());
+        }
+        for (Element element : binding.elementClicks) {
+            int[] ss = element.getAnnotation(OnClick.class).value();
+            for (int s : ss) {
+                result.addStatement("view$L.setOnClickListener(null)", s);
+                result.addStatement("view$L = null", s);
+            }
         }
         return result.build();
     }

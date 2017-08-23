@@ -20,10 +20,10 @@
         android:id="@+id/button2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="button2" />
+        android:text="进入SecondActivity" />
     <Button
         android:id="@+id/button3"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="button3" />
+        android:text="解绑定" />
 </LinearLayout>

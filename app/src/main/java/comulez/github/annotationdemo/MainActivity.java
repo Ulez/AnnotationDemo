@@ -1,5 +1,6 @@
 package comulez.github.annotationdemo;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -39,11 +40,11 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "button1");
                 break;
             case R.id.button2:
-                button2.setText("已经点击");
                 Log.i(TAG, "button2");
+                startActivity(new Intent(MainActivity.this, SecondActivity.class));
                 break;
             case R.id.button3:
-                button3.setText("已经unbind");
+                button3.setText("已经解绑");
                 Log.i(TAG, "button3");
                 unbinder.unbind();
                 break;
