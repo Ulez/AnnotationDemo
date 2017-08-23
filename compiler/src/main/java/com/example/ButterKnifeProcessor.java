@@ -42,11 +42,6 @@ public class ButterKnifeProcessor extends AbstractProcessor {
     private static final ClassName VIEW = ClassName.get("android.view", "View");
     private Elements elementUtils;
     private static final ClassName UNBINDER = ClassName.get("comulez.github.annotationdemo.ButterKnife", "Unbinder");
-    private static final ClassName Button = ClassName.get("android.widget", "Button");
-
-
-//    private ClassName bindingClassName;
-//    private TypeName targetTypeName;
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
@@ -61,7 +56,7 @@ public class ButterKnifeProcessor extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment env) {
         Map<ClassName, BindingSet> bindingMap = findAndParseTargets(env);
 
-        for (Map.Entry<ClassName, BindingSet> entry : bindingMap.entrySet()) {
+        for (Map.Entry<ClassName, BindingSet> entry : bindingMap.entrySet()) {//根据ClassName取得BindingSet，生成多个文件；
             ClassName className = entry.getKey();
             BindingSet binding = entry.getValue();
 
@@ -92,7 +87,7 @@ public class ButterKnifeProcessor extends AbstractProcessor {
         return false;
     }
 
-    private Map<ClassName, BindingSet> findAndParseTargets(RoundEnvironment env) {
+    private Map<ClassName, BindingSet> findAndParseTargets(RoundEnvironment env) {//以ClassName为key,BindingSet为value保存结果
         LinkedHashMap<ClassName, BindingSet> map = new LinkedHashMap<ClassName, BindingSet>();
 
         Set<? extends Element> elements = env.getElementsAnnotatedWith(Bind.class);
@@ -107,23 +102,19 @@ public class ButterKnifeProcessor extends AbstractProcessor {
             String packageName = getPackage(enclosingElement).getQualifiedName().toString();
             String className = enclosingElement.getQualifiedName().toString().substring(packageName.length() + 1).replace('.', '$');
             ClassName bindingClassName = ClassName.get(packageName, className);
-            l("1" + targetTypeName.toString());
 
             if (map.keySet().contains(bindingClassName)) {
-                l("2" + targetTypeName.toString());
                 BindingSet bindingSet = map.get(bindingClassName);
                 bindingSet.elements.add(element);
                 bindingSet.targetTypeName = targetTypeName;
                 bindingSet.bindingClassName = bindingClassName;
             } else {
-                l("2" + targetTypeName.toString());
                 BindingSet bindingSet = new BindingSet();
                 bindingSet.elements.add(element);
                 bindingSet.targetTypeName = targetTypeName;
                 bindingSet.bindingClassName = bindingClassName;
                 map.put(bindingClassName, bindingSet);
             }
-            l("3" + targetTypeName.toString());
         }
 
         for (Element click : elementClicks) {
@@ -136,7 +127,6 @@ public class ButterKnifeProcessor extends AbstractProcessor {
             String packageName = getPackage(enclosingElement).getQualifiedName().toString();
             String className = enclosingElement.getQualifiedName().toString().substring(packageName.length() + 1).replace('.', '$');
             ClassName bindingClassName = ClassName.get(packageName, className);
-            l("4" + targetTypeName.toString());
 
             if (map.keySet().contains(bindingClassName)) {
                 BindingSet bindingSet = map.get(bindingClassName);
